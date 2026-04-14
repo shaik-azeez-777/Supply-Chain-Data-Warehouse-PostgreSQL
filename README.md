@@ -14,7 +14,6 @@ An automated ETL pipeline built in PostgreSQL using the \*\*Medallion Architectu
 
 \- \*\*Gold (Analytics):\*\* Business-ready Views for executive reporting.
 
-\- \*\*Diamond (Optimization):\*\* B-Tree indexing and performance tuning.
 
 \## 🛠️ Key Technical Features
 
@@ -24,7 +23,6 @@ An automated ETL pipeline built in PostgreSQL using the \*\*Medallion Architectu
 
 \- \*\*Data Integrity:\*\* Primary/Foreign Key constraints and regex-based data profiling.
 
-\- \*\*Performance:\*\* Optimized query execution via \`EXPLAIN ANALYZE\`.
 
 \## 🚀 How to Run
 
@@ -33,3 +31,5 @@ An automated ETL pipeline built in PostgreSQL using the \*\*Medallion Architectu
 2\. Use \`CALL silver.sp\_refresh\_warehouse();\` to trigger the pipeline.
 
 3\. Query \`gold.vw\_product\_profitability\` for insights.
+
+<img width="590" height="317" alt="Screenshot 2026-04-14 202711" src="https://github.com/user-attachments/assets/785b2ada-dcaf-4e48-90ea-ebbb2014f085" />
