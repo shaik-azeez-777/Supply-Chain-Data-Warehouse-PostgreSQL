@@ -1,4 +1,4 @@
-drop table if exists bronze.stg_supply_chain
+-- drop table if exists bronze.stg_supply_chain
 
 
 CREATE TABLE bronze.stg_supply_chain (
@@ -42,40 +42,6 @@ FROM 'C:\Program Files\PostgreSQL\18\pgAdmin 4\runtime\supply_chain_data.csv'
 WITH (FORMAT CSV, HEADER, DELIMITER ',');
 
 select * from bronze.stg_supply_chain as bronze
-
-
---cleaning the data handling nulls and duplicates---
----filtering nulls---
-SELECT price FROM bronze.stg_supply_chain 
-WHERE price LIKE '%$%' 
-   OR price = '' 
-   OR price IS NULL;
-
-
---duplicates----
-SELECT UPPER(sku), COUNT(*) 
-FROM bronze.stg_supply_chain 
-GROUP BY UPPER(sku) 
-HAVING COUNT(*) > 1;
-
-SELECT sku FROM bronze.stg_supply_chain 
-WHERE sku ~ '[\n\t\r]'; ---[] #a list of wanted characters,inside list \n means it represnts newline(like hitting eneter) \t means represnts tab,\r means represnts a carriage return 
--- Sometimes when data is exported from old Excel files or web scrapers,
--- a SKU might look like 'SKU01', but it actually has a hidden "Enter" at the end. 
--- TRIM() doesn't always catch these in every database system. If this query returns 0 rows, 
--- it means your text is "clean" and doesn't have hidden formatting breaks.
-
-
-
----find any price that not a clean number---
-
-select price from bronze.stg_supply_chain
-where price ~ '^[0-9.]+$'
-
-SELECT sku FROM bronze.stg_supply_chain 
-WHERE sku !~ '^SKU[0-9]{4}$';   -- '!' means "Show me the ones that DON'T match"
-
-SELECT sku FROM bronze.stg_supply_chain WHERE sku ~ '[\s\t\n\r]'; 
 
 
 
