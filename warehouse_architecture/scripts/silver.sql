@@ -1,40 +1,75 @@
--- creating table for silver.dim_locations
-create table silver.dim_locations (
-location_key serial primary key,
-location_name varchar(20),
-supplier_name varchar(20)
+-- Create Star Schema Tables
+-- drop table if exists silver.dim_locations cascade
+-- drop table if exists silver.dim_products cascade
+-- drop table if exists silver.fct_supply_Chain cascade
+-- drop table if exists silver.rejected_records cascade
+
+
+
+
+CREATE TABLE silver.dim_products (
+    product_key SERIAL PRIMARY KEY,
+    sku VARCHAR(50) UNIQUE NOT NULL,
+    product_type VARCHAR(100)
 );
-ALTER TABLE silver.dim_locations
-    ALTER COLUMN location_name TYPE VARCHAR(100),
-    ALTER COLUMN supplier_name TYPE VARCHAR(100);
----pushing data to silver level into table .dim_locations----
-INSERT INTO silver.dim_locations (location_name, supplier_name)
-select distinct trim(location),trim(supplier_name)
-from bronze.stg_supply_chain
-where location is not null
-	and supplier_name is not null
 
-
---creating table for silver.dim_products
-create table silver.dim_products (
-product_key serial primary key,
-SKU varchar(50) unique not null,
-Product_type varchar(100)
+CREATE TABLE silver.dim_locations (
+    location_key SERIAL PRIMARY KEY,
+    location_name VARCHAR(100),
+    supplier_name VARCHAR(100),
+    CONSTRAINT unique_location_supplier UNIQUE (location_name, supplier_name)
 );
----pushing data to silver level in to table called .dim_products---
-insert into silver.dim_products (sku,product_type)
-select distinct
-upper(trim(sku)), trim(product_type) 
-from bronze.stg_supply_chain
-where sku is not null
-	and sku <> ' '
-	and sku <> 'NULL';
 
-
--- creating table for fact.supply_chain
 CREATE TABLE silver.fct_supply_chain (
     fact_key SERIAL PRIMARY KEY,
     product_key INT REFERENCES silver.dim_products(product_key),
+    location_key INT REFERENCES silver.dim_locations(location_key),
+    price DECIMAL(15,2),
+    revenue_generated DECIMAL(15,2),
+    stock_levels INT,
+    processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE silver.rejected_records (
+    id SERIAL PRIMARY KEY,
+    data_content JSONB,
+    rejected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
+
+CREATE OR REPLACE PROCEDURE silver.load_supply_chain_data()
+LANGUAGE plpgsql AS $$
+DECLARE fact_count INT;
+BEGIN
+    -- 1. IDENTIFY GARBAGE (Divert bad records)
+    INSERT INTO bronze.stg_supply_chain_rejected (raw_record, error_reason)
+    SELECT to_jsonb(b), 'Price/SKU Format Error'
+    FROM bronze.stg_supply_chain b
+    WHERE b.price !~ '^[0-9]+(\.[0-9]+)?$' OR b.sku !~ '^[a-zA-Z0-9_-]+$';
+
+    -- 2. UPSERT DIMENSIONS (Merge Logic)
+    INSERT INTO silver.dim_locations (location_name, supplier_name)
+    SELECT DISTINCT TRIM(location), TRIM(supplier_name)
+    FROM bronze.stg_supply_chain
+    WHERE location IS NOT NULL AND supplier_name IS NOT NULL
+    ON CONFLICT (location_name, supplier_name) DO NOTHING;
+
+    -- 3. LOAD FACT (Final Join)
+    TRUNCATE TABLE silver.fct_supply_chain;
+    INSERT INTO silver.fct_supply_chain (product_key, location_key, price, revenue_generated, stock_levels)
+    SELECT p.product_key, l.location_key, b.price::DECIMAL, b.revenue_generated::DECIMAL, b.stock_levels::INT
+    FROM bronze.stg_supply_chain b
+    JOIN silver.dim_products p ON UPPER(TRIM(b.sku)) = p.sku
+    JOIN silver.dim_locations l ON TRIM(b.location) = l.location_name AND TRIM(b.supplier_name) = l.supplier_name
+    WHERE b.price ~ '^[0-9]+(\.[0-9]+)?$';
+
+    GET DIAGNOSTICS fact_count = ROW_COUNT;
+    RAISE NOTICE 'Pipeline complete. Loaded % records.', fact_count;
+END; $$;
+
+call silver.load_supply_chain_data()
+
+SELECT count(*) as total_facts FROM silver.fct_supply_chain;    product_key INT REFERENCES silver.dim_products(product_key),
     location_key INT REFERENCES silver.dim_locations(location_key),
     price DECIMAL(15,2),
     revenue_generated DECIMAL(15,2),
