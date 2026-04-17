@@ -1,0 +1,57 @@
+import psycopg2
+import os 
+from glob import glob
+
+database_confi = {
+    'host' : 'localhost',
+    'user' : 'postgres',
+    'database' : 'Production_Warehouse',
+    'password' : 'urpassword',
+    'port' : '5432'
+}
+
+landing_zone = r'C:\Users\shaik\Downloads\OneDrive\Desktop\datawarehouse_automation_pipeline\landing_Zone'
+
+print(f'Reading Folder {landing_zone}')
+
+def run_pipeline():
+    conn = None
+    try:
+        files = glob(os.path.join(landing_zone,'*.csv'))
+        if not files:
+            print('No file type .csv')
+            return
+        
+        latest_file = max(files,key=os.path.getctime)
+        print(f'Found the latest files {latest_file}')        
+        
+        # database connection
+        conn = psycopg2.connect(**database_confi)
+        cur = conn.cursor()
+        
+        #clearing old bronze 
+        print('clearing the old bronze data for preventing idempotency')
+        cur.execute('''Truncate table bronze.stg_supply_chain;''')
+        
+        #loading new table
+        with open(latest_file,'r') as f:
+            # Specify the columns to ignore the 'ingested_at' column during the copy
+            cols = "(product_type, sku, price, availability, number_of_products_sold, revenue_generated, customer_demographics, stock_levels, lead_times, order_quantities, shipping_times, shipping_carriers, shipping_costs, supplier_name, location, lead_time_alt, production_volumes, mfg_lead_time, mfg_costs, inspection_results, defect_rates, transportation_modes, routes, costs)"
+            cur.copy_expert(f"COPY bronze.stg_supply_chain {cols} FROM STDIN WITH CSV HEADER", f)
+            
+        print("calling silver procedure to the new table")
+        cur.execute('''call silver.load_supply_chain_data();''')
+        
+        conn.commit()
+        print('done! everything is updated.') 
+                   
+    except Exception as e:
+        print(f'pipeline failed{e}')
+        
+    finally:
+        if conn:
+            cur.close()
+            conn.close()
+        
+if __name__ == '__main__':
+    run_pipeline()
