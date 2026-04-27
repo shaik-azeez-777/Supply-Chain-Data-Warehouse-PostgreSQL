@@ -1,0 +1,48 @@
+from airflow import DAG
+from airflow.providers.standard.operators.python import PythonOperator
+from datetime import datetime
+
+from scripts.extract import get_latest_file
+from scripts.load_bronze import load_to_bronze
+from scripts.transform_silver import run_silver
+from scripts.validate import validate_data
+
+
+def extract_task(ti):
+    file_path = get_latest_file()
+    ti.xcom_push(key='file_path', value=file_path)
+
+
+def load_task(ti):
+    file_path = ti.xcom_pull(key='file_path', task_ids='extract')
+    load_to_bronze(file_path)
+
+
+with DAG(
+    dag_id='supply_chain_pipeline',
+    start_date=datetime(2024, 1, 1),
+    schedule='@daily',
+    catchup=False
+) as dag:
+
+    extract = PythonOperator(
+        task_id='extract',
+        python_callable=extract_task
+    )
+
+    load = PythonOperator(
+        task_id='load_bronze',
+        python_callable=load_task
+    )
+
+    transform = PythonOperator(
+        task_id='transform_silver',
+        python_callable=run_silver
+    )
+
+    validate = PythonOperator(
+        task_id='validate',
+        python_callable=validate_data
+    )
+
+    extract >> load >> transform >> validate
