@@ -1,35 +1,30 @@
-\# End-to-End Supply Chain Data Warehouse 🚀
+# Supply Chain Data Pipeline (ETL with Airflow & PostgreSQL)
 
-\*\*Architected by: Azeez (Bioinformatics @ Vignan University)\*\*
+## Problem
 
-\## 📌 Project Overview
+Manual data pipelines using scripts and cron jobs caused:
+- No retry on failure
+- No monitoring
+- High latency
+- No data validation
 
-An automated ETL pipeline built in PostgreSQL using the \*\*Medallion Architecture\*\*. This project transforms raw logistics data into a 3NF Star Schema to provide actionable business insights.
+## Solution
 
-\## 🏗️ Architecture (Medallion Model)
+Built an automated ETL pipeline using:
+- Apache Airflow (scheduling)
+- PostgreSQL (data warehouse)
+- Python (data processing)
 
-\- \*\*Bronze (Staging):\*\* Raw ingestion with metadata (Audit columns) and fault-tolerant TEXT schema.
+Pipeline flow:
+CSV → Extract → Bronze → Transform → Silver → Validate
 
-\- \*\*Silver (Warehouse):\*\* Normalized Dimensions and Fact tables. Enforced Referential Integrity and Type Casting.
+## Tech Stack
 
-\- \*\*Gold (Analytics):\*\* Business-ready Views for executive reporting.
+- Python
+- PostgreSQL
+- Apache Airflow
+- SQL
 
+## Status
 
-\## 🛠️ Key Technical Features
-
-\- \*\*Automation:\*\* PL/pgSQL Stored Procedure for one-click ETL refreshes.
-
-\- \*\*Normalization:\*\* 3rd Normal Form (3NF) to eliminate data redundancy.
-
-\- \*\*Data Integrity:\*\* Primary/Foreign Key constraints and regex-based data profiling.
-
-
-\## 🚀 How to Run
-
-1\. Execute scripts in \`/scripts\` folder in order (01 to 04).
-
-2\. Use \`CALL silver.sp\_refresh\_warehouse();\` to trigger the pipeline.
-
-3\. Query \`gold.vw\_product\_profitability\` for insights.
-
-<img width="590" height="317" alt="Screenshot 2026-04-14 202711" src="https://github.com/user-attachments/assets/785b2ada-dcaf-4e48-90ea-ebbb2014f085" />
+Working pipeline with automated scheduling and validation.
